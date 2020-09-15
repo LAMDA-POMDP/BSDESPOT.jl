@@ -1,4 +1,5 @@
-using ARDESPOT
+push!(LOAD_PATH, "..")
+using PL_DESPOT # PL_DESPOT pkg
 using Test
 
 using POMDPs
@@ -23,21 +24,21 @@ scenarios = [i=>rand(rng, b_0) for i in 1:K]
 o = false
 b = ScenarioBelief(scenarios, rs, 0, o)
 pol = FeedWhenCrying()
-r1 = ARDESPOT.branching_sim(pomdp, pol, b, 10, (m,x)->0.0)
-r2 = ARDESPOT.branching_sim(pomdp, pol, b, 10, (m,x)->0.0)
+r1 = PL_DESPOT.branching_sim(pomdp, pol, b, 10, (m,x)->0.0)
+r2 = PL_DESPOT.branching_sim(pomdp, pol, b, 10, (m,x)->0.0)
 @test r1 == r2
 tval = 7.0
-r3 = ARDESPOT.branching_sim(pomdp, pol, b, 10, (m,x)->tval)
+r3 = PL_DESPOT.branching_sim(pomdp, pol, b, 10, (m,x)->tval)
 @test r3 == r2 + tval*length(b.scenarios)
 
 scenarios = [1=>rand(rng, b_0)]
 b = ScenarioBelief(scenarios, rs, 0, false)
 pol = FeedWhenCrying()
-r1 = ARDESPOT.rollout(pomdp, pol, b, 10, (m,x)->0.0)
-r2 = ARDESPOT.rollout(pomdp, pol, b, 10, (m,x)->0.0)
+r1 = PL_DESPOT.rollout(pomdp, pol, b, 10, (m,x)->0.0)
+r2 = PL_DESPOT.rollout(pomdp, pol, b, 10, (m,x)->0.0)
 @test r1 == r2
 tval = 7.0
-r3 = ARDESPOT.rollout(pomdp, pol, b, 10, (m,x)->tval)
+r3 = PL_DESPOT.rollout(pomdp, pol, b, 10, (m,x)->tval)
 @test r3 == r2 + tval
 
 # AbstractParticleBelief interface
@@ -63,14 +64,14 @@ pomdp = BabyPOMDP()
 
 # constant bounds
 bds = (reward(pomdp, true, false)/(1-discount(pomdp)), 0.0)
-solver = DESPOTSolver(bounds=bds)
+solver = PL_DESPOTSolver(bounds=bds)
 planner = solve(solver, pomdp)
 hr = HistoryRecorder(max_steps=2)
 @time hist = simulate(hr, pomdp, planner)
 
 # policy lower bound
 bds = IndependentBounds(DefaultPolicyLB(FeedWhenCrying()), 0.0)
-solver = DESPOTSolver(bounds=bds)
+solver = PL_DESPOTSolver(bounds=bds)
 planner = solve(solver, pomdp)
 hr = HistoryRecorder(max_steps=2)
 @time hist = simulate(hr, pomdp, planner)
@@ -78,7 +79,7 @@ hr = HistoryRecorder(max_steps=2)
 # policy lower bound with final value
 fv(m::BabyPOMDP, x) = reward(m, true, false)/(1-discount(m))
 bds = IndependentBounds(DefaultPolicyLB(FeedWhenCrying(), final_value=fv), 0.0)
-solver = DESPOTSolver(bounds=bds)
+solver = PL_DESPOTSolver(bounds=bds)
 planner = solve(solver, pomdp)
 hr = HistoryRecorder(max_steps=2)
 @time hist = simulate(hr, pomdp, planner)
@@ -86,28 +87,28 @@ hr = HistoryRecorder(max_steps=2)
 # Type stability
 pomdp = BabyPOMDP()
 bds = IndependentBounds(reward(pomdp, true, false)/(1-discount(pomdp)), 0.0)
-solver = DESPOTSolver(epsilon_0=0.1,
+solver = PL_DESPOTSolver(epsilon_0=0.1,
                       bounds=bds,
                       rng=MersenneTwister(4)
                      )
 p = solve(solver, pomdp)
 
 b0 = initialstate(pomdp)
-D = @inferred ARDESPOT.build_despot(p, b0)
-@inferred ARDESPOT.explore!(D, 1, p)
-@inferred ARDESPOT.expand!(D, length(D.children), p)
-@inferred ARDESPOT.prune!(D, 1, p)
-@inferred ARDESPOT.find_blocker(D, length(D.children), p)
-@inferred ARDESPOT.make_default!(D, length(D.children))
-@inferred ARDESPOT.backup!(D, 1, p)
-@inferred ARDESPOT.next_best(D, 1, p)
-@inferred ARDESPOT.excess_uncertainty(D, 1, p)
+D = @inferred PL_DESPOT.build_despot(p, b0)
+@inferred PL_DESPOT.explore!(D, 1, p)
+@inferred PL_DESPOT.expand!(D, length(D.children), p)
+@inferred PL_DESPOT.prune!(D, 1, p)
+@inferred PL_DESPOT.find_blocker(D, length(D.children), p)
+@inferred PL_DESPOT.make_default!(D, length(D.children))
+@inferred PL_DESPOT.backup!(D, 1, p)
+@inferred PL_DESPOT.next_best(D, 1, p)
+@inferred PL_DESPOT.excess_uncertainty(D, 1, p)
 @inferred action(p, b0)
 
 
 bds = IndependentBounds(reward(pomdp, true, false)/(1-discount(pomdp)), 0.0)
 rng = MersenneTwister(4)
-solver = DESPOTSolver(epsilon_0=0.1,
+solver = PL_DESPOTSolver(epsilon_0=0.1,
                       bounds=bds,
                       rng=rng,
                       random_source=MemorizingSource(500, 90, rng),
@@ -124,11 +125,11 @@ a, info = action_info(p, initialstate(pomdp))
 show(stdout, MIME("text/plain"), info[:tree])
 
 # from README:
-using POMDPs, POMDPModels, POMDPSimulators, ARDESPOT
+using POMDPs, POMDPModels, POMDPSimulators, PL_DESPOT
 
 pomdp = TigerPOMDP()
 
-solver = DESPOTSolver(bounds=(-20.0, 0.0))
+solver = PL_DESPOTSolver(bounds=(-20.0, 0.0))
 planner = solve(solver, pomdp)
 
 for (s, a, o) in stepthrough(pomdp, planner, "s,a,o", max_steps=10)

@@ -55,7 +55,7 @@ function bounds(bounds::IndependentBounds, pomdp::POMDP, b::ScenarioBelief)
     return (l,u)
 end
 
-function init_bounds(bounds::IndependentBounds, pomdp::POMDP, sol::DESPOTSolver)
+function init_bounds(bounds::IndependentBounds, pomdp::POMDP, sol::PL_DESPOTSolver)
     return IndependentBounds(init_bound(bounds.lower, pomdp, sol),
                              init_bound(bounds.upper, pomdp, sol),
                              bounds.check_terminal,
@@ -80,7 +80,7 @@ end
 
 ubound(ub::FullyObservableValueUB, pomdp::POMDP, b::ScenarioBelief) = mean(value(ub.p, s) for s in particles(b)) # assumes that all are weighted equally
 
-function init_bound(ub::FullyObservableValueUB{S}, pomdp::POMDP, sol::DESPOTSolver) where S <: Solver
+function init_bound(ub::FullyObservableValueUB{S}, pomdp::POMDP, sol::PL_DESPOTSolver) where S <: Solver
     return FullyObservableValueUB(solve(ub.p, pomdp))
 end
 
@@ -116,12 +116,12 @@ function lbound(lb::DefaultPolicyLB, pomdp::POMDP, b::ScenarioBelief)
     return rsum/length(b.scenarios)
 end
 
-function init_bound(lb::DefaultPolicyLB{S}, pomdp::POMDP, sol::DESPOTSolver) where S <: Solver
+function init_bound(lb::DefaultPolicyLB{S}, pomdp::POMDP, sol::PL_DESPOTSolver) where S <: Solver
     policy = solve(lb.policy, pomdp)
     return init_bound(DefaultPolicyLB(policy, lb.max_depth, lb.final_value), pomdp, sol)
 end
 
-function init_bound(lb::DefaultPolicyLB{P}, pomdp::POMDP, sol::DESPOTSolver) where P <: Policy
+function init_bound(lb::DefaultPolicyLB{P}, pomdp::POMDP, sol::PL_DESPOTSolver) where P <: Policy
     max_depth = something(lb.max_depth, sol.D)
     return DefaultPolicyLB(lb.policy, max_depth, lb.final_value)
 end

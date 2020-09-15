@@ -1,4 +1,4 @@
-# PL-DESPOT
+# PL_DESPOT
 The combination of PLEASE and DESPOT
 
 ## Installation

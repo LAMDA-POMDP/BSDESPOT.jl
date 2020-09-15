@@ -1,4 +1,4 @@
-module PL-DESPOT
+module PL_DESPOT
 
 using POMDPs
 using BeliefUpdaters
@@ -15,20 +15,26 @@ import BasicPOMCP.default_action
 
 import Random.rand
 
-export
-    DESPOTSolver,
-    DESPOTPlanner,
 
+export
+    # PL_DESPOT.jl
+    PL_DESPOTSolver,
+    PL_DESPOTPlanner,
+
+    # random_2.jl
     DESPOTRandomSource,
     MemorizingSource,
     MemorizingRNG,
 
+    # scenario_belief.jl
     ScenarioBelief,
     previous_obs,
 
+    # exceptions.jl
     default_action,
     NoGap,
 
+    # bounds.jl
     IndependentBounds,
     FullyObservableValueUB,
     DefaultPolicyLB,
@@ -38,15 +44,16 @@ export
     ubound,
     init_bound,
 
+    # MCTS.jl
     ReportWhenUsed
 
 # include("random.jl")
 include("random_2.jl")
 
 """
-    DESPOTSolver(<keyword arguments>)
+    PL_DESPOTSolver(<keyword arguments>)
 
-Implementation of the ARDESPOT solver trying to closely match the pseudo code of:
+Implementation of the PL_DESPOTSolver solver trying to closely match the pseudo code of:
 
 http://bigbird.comp.nus.edu.sg/m2ap/wordpress/wp-content/uploads/2017/08/jair14.pdf
 
@@ -59,6 +66,7 @@ parameters match the definitions in the paper exactly.
 - `K`
 - `D`
 - `lambda`
+- 'zeta'
 - `T_max`
 - `max_trials`
 - `bounds`
@@ -69,9 +77,10 @@ parameters match the definitions in the paper exactly.
 - `tree_in_info`
 
 Further information can be found in the field docstrings (e.g.
-`?DESPOTSolver.xi`)
+`?PL_DESPOTSolver.xi`)
 """
-@with_kw mutable struct DESPOTSolver <: Solver
+
+@with_kw mutable struct PL_DESPOTSolver <: Solver
     "The target gap between the upper and the lower bound at the root of the partial DESPOT."
     epsilon_0::Float64                      = 0.0
 
@@ -86,7 +95,7 @@ Further information can be found in the field docstrings (e.g.
 
     "Reguluarization constant."
     lambda::Float64                         = 0.01
-
+    
     "The maximum online planning time per step."
     T_max::Float64                          = 1.0
 
@@ -97,7 +106,6 @@ Further information can be found in the field docstrings (e.g.
     bounds::Any                             = IndependentBounds(-1e6, 1e6)
 
     """A default action to use if algorithm fails to provide an action because of an error.
-   
     This can either be an action object, i.e. `default_action=1` if `actiontype(pomdp)==Int` or a function `f(pomdp, b, ex)` where b is the belief and ex is the exception that caused the planner to fail.
     """
     default_action::Any                     = ExceptionRethrow()
@@ -113,26 +121,29 @@ Further information can be found in the field docstrings (e.g.
 
     "If true, a reprenstation of the constructed DESPOT is returned by POMDPModelTools.action_info."
     tree_in_info::Bool                      = false
+
+    "The fixed rate of choosing extra observation branches"
+    zeta::Float64                           = 0.8
 end
 
 include("scenario_belief.jl")
 include("default_policy_sim.jl")
 include("bounds.jl")
 
-struct DESPOTPlanner{P<:POMDP, B, RS<:DESPOTRandomSource, RNG<:AbstractRNG} <: Policy
-    sol::DESPOTSolver
+struct PL_DESPOTPlanner{P<:POMDP, B, RS<:DESPOTRandomSource, RNG<:AbstractRNG} <: Policy
+    sol::PL_DESPOTSolver
     pomdp::P
     bounds::B
     rs::RS
     rng::RNG
 end
 
-function DESPOTPlanner(sol::DESPOTSolver, pomdp::POMDP)
+function PL_DESPOTPlanner(sol::PL_DESPOTSolver, pomdp::POMDP)
     bounds = init_bounds(sol.bounds, pomdp, sol)
     rng = deepcopy(sol.rng)
     rs = deepcopy(sol.random_source)
     Random.seed!(rs, rand(rng, UInt32))
-    return DESPOTPlanner(deepcopy(sol), pomdp, bounds, rs, rng)
+    return PL_DESPOTPlanner(deepcopy(sol), pomdp, bounds, rs, rng)
 end
 
 include("tree.jl")

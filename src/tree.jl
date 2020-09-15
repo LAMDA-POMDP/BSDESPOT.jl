@@ -19,7 +19,7 @@ struct DESPOT{S,A,O}
     _discount::Float64 # for inferring L in visualization
 end
 
-function DESPOT(p::DESPOTPlanner, b_0)
+function DESPOT(p::PL_DESPOTPlanner, b_0)
     S = statetype(p.pomdp)
     A = actiontype(p.pomdp)
     O = obstype(p.pomdp)
@@ -52,7 +52,7 @@ function DESPOT(p::DESPOTPlanner, b_0)
                  )
 end
 
-function expand!(D::DESPOT, b::Int, p::DESPOTPlanner)
+function expand!(D::DESPOT, b::Int, p::PL_DESPOTPlanner)
     S = statetype(p.pomdp)
     A = actiontype(p.pomdp)
     O = obstype(p.pomdp)

@@ -1,5 +1,5 @@
 using POMDPs
-using ARDESPOT
+using PL_DESPOT
 using POMDPToolbox
 using POMDPModels
 using ProgressMeter
@@ -12,7 +12,7 @@ pomdp = BabyPOMDP()
 bounds = IndependentBounds(DefaultPolicyLB(FeedWhenCrying()), 0.0)
 # bounds = IndependentBounds(reward(pomdp, false, true)/(1-discount(pomdp)), 0.0)
 
-solver = DESPOTSolver(epsilon_0=0.1,
+solver = PL_DESPOTSolver(epsilon_0=0.1,
                       K=100,
                       D=50,
                       lambda=0.01,
