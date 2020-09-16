@@ -35,10 +35,14 @@ function explore!(D::DESPOT, b::Int, p::PL_DESPOTPlanner)
     
         # select observation branch
         children_eu = [excess_uncertainty(D, bp, p) for bp in D.ba_children[best_ba]]
-        max_eu, _ = findmax(children_eu)
-        for i in 1:length(D.ba_children[best_ba])
-            if children_eu[i] >= p.sol.zeta*max_eu
-                explore!(D, D.ba_children[best_ba][i], p)
+        max_eu, ind = findmax(children_eu)
+        if max_eu <= 0
+            explore!(D, D.ba_children[best_ba][ind], p)
+        else
+            for i in 1:length(D.ba_children[best_ba])
+                if children_eu[i] >= p.sol.zeta*max_eu
+                    explore!(D, D.ba_children[best_ba][i], p)
+                end
             end
         end
     end
