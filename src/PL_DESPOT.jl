@@ -124,6 +124,9 @@ Further information can be found in the field docstrings (e.g.
 
     "The fixed rate of choosing extra observation branches"
     zeta::Float64                           = 0.8
+
+    "function to adjust zeta during exploration"
+    adjust_zata::Any                        = null_adjust
 end
 
 include("scenario_belief.jl")

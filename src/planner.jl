@@ -7,13 +7,16 @@ function build_despot(p::PL_DESPOTPlanner, b_0)
     while D.mu[1]-D.l[1] > p.sol.epsilon_0 &&
           CPUtime_us()-start < p.sol.T_max*1e6 &&
           trial <= p.sol.max_trials
-        explore!(D, 1, p)
+        explore!(D, 1, p, start)
         trial += 1
     end
     return D
 end
 
-function explore!(D::DESPOT, b::Int, p::PL_DESPOTPlanner)
+function explore!(D::DESPOT, b::Int, p::PL_DESPOTPlanner, start)
+    depth = D.Delta[b]
+    k_ratio = length(D.scenarios[b])/p.sol.K
+    left_time = p.sol.T_max - (CPUtime_us() - start)
     if D.Delta[b] <= p.sol.D &&
         excess_uncertainty(D, b, p) > 0.0 &&
         !prune!(D, b, p)
@@ -37,11 +40,13 @@ function explore!(D::DESPOT, b::Int, p::PL_DESPOTPlanner)
         children_eu = [excess_uncertainty(D, bp, p) for bp in D.ba_children[best_ba]]
         max_eu, ind = findmax(children_eu)
         if max_eu <= 0
-            explore!(D, D.ba_children[best_ba][ind], p)
+            explore!(D, D.ba_children[best_ba][ind], p, start)
         else
+            zeta = p.sol.zeta*p.sol.adjust_zata(depth, k_ratio, left_time)
+            @assert(zeta<=1, "adjust function need to be redesigned")
             for i in 1:length(D.ba_children[best_ba])
-                if children_eu[i] >= p.sol.zeta*max_eu
-                    explore!(D, D.ba_children[best_ba][i], p)
+                if children_eu[i] >= zeta*max_eu
+                    explore!(D, D.ba_children[best_ba][i], p, start)
                 end
             end
         end
@@ -125,6 +130,7 @@ function excess_uncertainty(D::DESPOT, b::Int, p::PL_DESPOTPlanner)
     return D.mu[b]-D.l[b] - length(D.scenarios[b])/p.sol.K * p.sol.xi * (D.mu[1]-D.l[1])
 end
 
-function adjust_zata(D::DESPOT, b::Int, p::PL_DESPOTPlanner)
-    #TODO
+function null_adjust(depth, k_ratio, left_time)
+    # You may design a similar function and use it to construct DESPOT solver as adjust_zata filed in it
+    1
 end
