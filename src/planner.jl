@@ -16,7 +16,7 @@ end
 function explore!(D::DESPOT, b::Int, p::PL_DESPOTPlanner, start)
     depth = D.Delta[b]/p.sol.D
     k = length(D.scenarios[b])/p.sol.K
-    left_time = 1 - (CPUtime_us() - start)/p.sol.T_max
+    left_time = min(0, 1 - (CPUtime_us() - start)/(p.sol.T_max*1e6))
     if D.Delta[b] <= p.sol.D &&
         excess_uncertainty(D, b, p) > 0.0 &&
         !prune!(D, b, p)
@@ -42,8 +42,8 @@ function explore!(D::DESPOT, b::Int, p::PL_DESPOTPlanner, start)
         if max_eu <= 0
             explore!(D, D.ba_children[best_ba][ind], p, start)
         else
-            zeta = p.sol.zeta*p.sol.adjust_zata(depth, k, left_time)
-            @assert(zeta<=1, "adjust function need to be redesigned")
+            zeta = p.sol.zeta*p.sol.adjust_zeta(depth, k, left_time)
+            @assert(zeta<=1, "$depth, $k, $left_time")
             for i in 1:length(D.ba_children[best_ba])
                 if children_eu[i] >= zeta*max_eu
                     explore!(D, D.ba_children[best_ba][i], p, start)
