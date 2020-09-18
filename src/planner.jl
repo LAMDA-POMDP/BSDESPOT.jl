@@ -45,9 +45,13 @@ function explore!(D::DESPOT, b::Int, p::PL_DESPOTPlanner, start)
             zeta = p.sol.zeta*p.sol.adjust_zeta(depth, k, left_time)
             @assert(zeta<=1, "$depth, $k, $left_time")
             for i in 1:length(D.ba_children[best_ba])
-                if children_eu[i] >= zeta*max_eu
-                    explore!(D, D.ba_children[best_ba][i], p, start)
+                eu, id = findmax(children_eu)
+                if eu >= zeta * max_eu
+                    explore!(D, D.ba_children[best_ba][id], p, start)
+                else
+                    break
                 end
+                children_eu[id] = -Inf
             end
         end
     end
