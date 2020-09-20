@@ -8,6 +8,7 @@ using POMDPSimulators
 using Random
 using POMDPModelTools
 using ParticleFilters
+using CPUTime
 
 include("memorizing_rng.jl")
 include("independent_bounds.jl")
@@ -95,13 +96,12 @@ p = solve(solver, pomdp)
 
 b0 = initialstate(pomdp)
 D = @inferred PL_DESPOT.build_despot(p, b0)
-@inferred PL_DESPOT.explore!(D, 1, p)
+@inferred PL_DESPOT.explore!(D, 1, p, CPUtime_us())
 @inferred PL_DESPOT.expand!(D, length(D.children), p)
 @inferred PL_DESPOT.prune!(D, 1, p)
 @inferred PL_DESPOT.find_blocker(D, length(D.children), p)
 @inferred PL_DESPOT.make_default!(D, length(D.children))
 @inferred PL_DESPOT.backup!(D, 1, p)
-@inferred PL_DESPOT.next_best(D, 1, p)
 @inferred PL_DESPOT.excess_uncertainty(D, 1, p)
 @inferred action(p, b0)
 

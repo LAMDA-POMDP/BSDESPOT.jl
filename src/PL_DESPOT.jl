@@ -127,6 +127,12 @@ Further information can be found in the field docstrings (e.g.
 
     "function to adjust zeta during exploration"
     adjust_zeta::Any                        = null_adjust
+
+    "A number used to adjust the engagement of lower bound in branch selection."
+    beta::Float64                           = 0.0
+
+    "Select the implementation of LB-DESPOT"
+    impl::Symbol                            = :rank
 end
 
 include("scenario_belief.jl")
