@@ -1,3 +1,6 @@
+pl_num = 0
+de_num = 0
+
 function build_despot(p::PL_DESPOTPlanner, b_0)
     D = DESPOT(p, b_0)
     b = 1
@@ -7,6 +10,8 @@ function build_despot(p::PL_DESPOTPlanner, b_0)
     while D.mu[1]-D.l[1] > p.sol.epsilon_0 &&
           CPUtime_us()-start < p.sol.T_max*1e6 &&
           trial <= p.sol.max_trials
+          global pl_num = 1
+          global de_num = 1
         explore!(D, 1, p, start)
         trial += 1
     end
@@ -14,6 +19,7 @@ function build_despot(p::PL_DESPOTPlanner, b_0)
 end
 
 function explore!(D::DESPOT, b::Int, p::PL_DESPOTPlanner, start::UInt64)
+    global de_num = max(de_num, D.Delta[b]+1)
     depth = D.Delta[b]/p.sol.D
     k = length(D.scenarios[b])/p.sol.K
     left_time = min(0, 1 - (CPUtime_us() - start)/(p.sol.T_max*1e6))
@@ -27,32 +33,32 @@ function explore!(D::DESPOT, b::Int, p::PL_DESPOTPlanner, start::UInt64)
 
         # select action branch
         if p.sol.impl == :prob
-            max = -Inf
+            _max = -Inf
             best_ba = first(D.children[b])
             if rand(p.rng) > p.sol.beta
                 for ba in D.children[b]
                     val = D.ba_mu[ba]
-                    if val > max
-                        max = val
+                    if val > _max
+                        _max = val
                         best_ba = ba
                     end
                 end
             else
                 for ba in D.children[b]
                     val = D.ba_l[ba]
-                    if val > max
-                        max = val
+                    if val > _max
+                        _max = val
                         best_ba = ba
                     end
                 end
             end
         elseif p.sol.impl == :val
-            max = -Inf
+            _max = -Inf
             best_ba = first(D.children[b])
             for ba in D.children[b]
                 val = D.ba_mu[ba] + p.sol.beta * D.ba_l[ba]
-                if val > max
-                    max = val
+                if val > _max
+                    _max = val
                     best_ba = ba
                 end
             end
@@ -72,18 +78,25 @@ function explore!(D::DESPOT, b::Int, p::PL_DESPOTPlanner, start::UInt64)
             end
             best_ba = D.children[b][ind]
         end
-    
+
         # select observation branch
         children_eu = [excess_uncertainty(D, bp, p) for bp in D.ba_children[best_ba]]
         max_eu, ind = findmax(children_eu)
         if max_eu <= 0
+            global pl_num += 1
             explore!(D, D.ba_children[best_ba][ind], p, start)
         else
-            zeta = p.sol.zeta*p.sol.adjust_zeta(depth, k, left_time)
+            ratio::Float64 = pl_num / de_num
+            if ratio <= p.sol.C
+                zeta = p.sol.zeta*p.sol.adjust_zeta(depth, k, left_time)
+            else
+                zeta = p.sol.zeta
+            end
             @assert(zeta<=1, "$depth, $k, $left_time")
             for i in 1:length(D.ba_children[best_ba])
                 eu, id = findmax(children_eu)
                 if eu >= zeta * max_eu
+                    global pl_num += 1
                     explore!(D, D.ba_children[best_ba][id], p, start)
                 else
                     break

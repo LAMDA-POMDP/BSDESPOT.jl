@@ -95,7 +95,7 @@ Further information can be found in the field docstrings (e.g.
 
     "Reguluarization constant."
     lambda::Float64                         = 0.01
-    
+
     "The maximum online planning time per step."
     T_max::Float64                          = 1.0
 
@@ -133,6 +133,9 @@ Further information can be found in the field docstrings (e.g.
 
     "Select the implementation of LB-DESPOT"
     impl::Symbol                            = :rank
+
+    "Control the ratio of #PLEASE and #DESPOT"
+    C::Float64                              = Inf
 end
 
 include("scenario_belief.jl")
