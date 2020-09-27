@@ -59,8 +59,10 @@ function explore!(D::DESPOT, b::Int, p::PL_DESPOTPlanner, dist::Int)
     for i in length(arr):-1:1
         best_ba = start_ind + sorted_action[i] - 1
         children_eu = [excess_uncertainty(D, bp, p) for bp in D.ba_children[best_ba]]
-        max_eu = maximum(children_eu)
+        max_eu, ind = findmax(children_eu)
         if max_eu > 0
+            explore!(D, D.ba_children[best_ba][ind], p, dist)
+            children_eu[ind] = 0.0
             break
         end
     end
@@ -70,11 +72,7 @@ function explore!(D::DESPOT, b::Int, p::PL_DESPOTPlanner, dist::Int)
     for i in 1:length(children_eu)
         eu = children_eu[i]
         if eu >= zeta * max_eu
-            if eu == max_eu
-                explore!(D, D.ba_children[best_ba][i], p, dist)
-            else
-                explore!(D, D.ba_children[best_ba][i], p, dist+1)
-            end
+            explore!(D, D.ba_children[best_ba][i], p, dist+1)
         end
     end
 
