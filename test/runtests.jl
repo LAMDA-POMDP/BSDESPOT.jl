@@ -65,14 +65,14 @@ pomdp = BabyPOMDP()
 
 # constant bounds
 bds = (reward(pomdp, true, false)/(1-discount(pomdp)), 0.0)
-solver = PL_DESPOTSolver(bounds=bds)
+solver = PL_DESPOTSolver(bounds=bds, impl=:val, beta=0.3)
 planner = solve(solver, pomdp)
 hr = HistoryRecorder(max_steps=2)
 @time hist = simulate(hr, pomdp, planner)
 
 # policy lower bound
 bds = IndependentBounds(DefaultPolicyLB(FeedWhenCrying()), 0.0)
-solver = PL_DESPOTSolver(bounds=bds)
+solver = PL_DESPOTSolver(bounds=bds, impl=:prob, beta=0.3)
 planner = solve(solver, pomdp)
 hr = HistoryRecorder(max_steps=2)
 @time hist = simulate(hr, pomdp, planner)
@@ -80,7 +80,7 @@ hr = HistoryRecorder(max_steps=2)
 # policy lower bound with final value
 fv(m::BabyPOMDP, x) = reward(m, true, false)/(1-discount(m))
 bds = IndependentBounds(DefaultPolicyLB(FeedWhenCrying(), final_value=fv), 0.0)
-solver = PL_DESPOTSolver(bounds=bds)
+solver = PL_DESPOTSolver(bounds=bds, impl=:rank, beta=0.3)
 planner = solve(solver, pomdp)
 hr = HistoryRecorder(max_steps=2)
 @time hist = simulate(hr, pomdp, planner)
@@ -96,13 +96,15 @@ p = solve(solver, pomdp)
 
 b0 = initialstate(pomdp)
 D = @inferred PL_DESPOT.build_despot(p, b0)
-@inferred PL_DESPOT.explore!(D, 1, p, CPUtime_us())
+@inferred PL_DESPOT.explore!(D, 1, p, 1)
 @inferred PL_DESPOT.expand!(D, length(D.children), p)
 @inferred PL_DESPOT.prune!(D, 1, p)
 @inferred PL_DESPOT.find_blocker(D, length(D.children), p)
 @inferred PL_DESPOT.make_default!(D, length(D.children))
 @inferred PL_DESPOT.backup!(D, 1, p)
 @inferred PL_DESPOT.excess_uncertainty(D, 1, p)
+@inferred PL_DESPOT.index_sort([1.0, 3.0, 2.0, 4.0], [1:4;])
+@inferred PL_DESPOT.ind_rank([1.0, 3.0, 2.0, 4.0], [1:4;])
 @inferred action(p, b0)
 
 

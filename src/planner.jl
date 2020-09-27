@@ -7,94 +7,77 @@ function build_despot(p::PL_DESPOTPlanner, b_0)
     while D.mu[1]-D.l[1] > p.sol.epsilon_0 &&
           CPUtime_us()-start < p.sol.T_max*1e6 &&
           trial <= p.sol.max_trials
-        explore!(D, 1, p, start)
+        explore!(D, 1, p, 1)
+        if p.pl_count/p.de_count >= p.sol.C + 1
+            p.theta = min(p.theta + p.sol.Delta, 1.0)
+        else
+            p.theta = max(p.theta - p.sol.Delta, p.sol.theta_l)
+        end
+        p.pl_count = 0
+        p.de_count = 0
         trial += 1
     end
     return D
 end
 
-function explore!(D::DESPOT, b::Int, p::PL_DESPOTPlanner, start::UInt64)
-    depth = D.Delta[b]/p.sol.D
-    k = length(D.scenarios[b])/p.sol.K
-    left_time = min(0, 1 - (CPUtime_us() - start)/(p.sol.T_max*1e6))
-    if D.Delta[b] <= p.sol.D &&
-        excess_uncertainty(D, b, p) > 0.0 &&
-        !prune!(D, b, p)
-
-        if isempty(D.children[b]) # a leaf
-            expand!(D, b, p)
-        end
-
-        # select action branch
-        if p.sol.impl == :prob
-            max = -Inf
-            best_ba = first(D.children[b])
-            if rand(p.rng) > p.sol.beta
-                for ba in D.children[b]
-                    val = D.ba_mu[ba]
-                    if val > max
-                        max = val
-                        best_ba = ba
-                    end
-                end
-            else
-                for ba in D.children[b]
-                    val = D.ba_l[ba]
-                    if val > max
-                        max = val
-                        best_ba = ba
-                    end
-                end
-            end
-        elseif p.sol.impl == :val
-            max = -Inf
-            best_ba = first(D.children[b])
-            for ba in D.children[b]
-                val = D.ba_mu[ba] + p.sol.beta * D.ba_l[ba]
-                if val > max
-                    max = val
-                    best_ba = ba
-                end
-            end
-        else
-            if p.sol.beta != 0
-                mu_ranking = ind_rank(D.ba_mu, D.children[b])
-                l_ranking = ind_rank(D.ba_l, D.children[b]) .- 1
-                for i in 1:length(l_ranking)
-                    if l_ranking[i] == 0
-                        l_ranking .+= 10000
-                    end
-                end
-                ranking = mu_ranking .+ p.sol.beta.*l_ranking
-                _, ind = findmin(ranking)
-            else
-                _, ind = findmax([D.ba_mu[ba] for ba in D.children[b]])
-            end
-            best_ba = D.children[b][ind]
-        end
-    
-        # select observation branch
-        children_eu = [excess_uncertainty(D, bp, p) for bp in D.ba_children[best_ba]]
-        max_eu, ind = findmax(children_eu)
-        if max_eu <= 0
-            explore!(D, D.ba_children[best_ba][ind], p, start)
-        else
-            zeta = p.sol.zeta*p.sol.adjust_zeta(depth, k, left_time)
-            @assert(zeta<=1, "$depth, $k, $left_time")
-            for i in 1:length(D.ba_children[best_ba])
-                eu, id = findmax(children_eu)
-                if eu >= zeta * max_eu
-                    explore!(D, D.ba_children[best_ba][id], p, start)
-                else
-                    break
-                end
-                children_eu[id] = -Inf
-            end
-        end
+function explore!(D::DESPOT, b::Int, p::PL_DESPOTPlanner, dist::Int)
+    # Count for #PLEASE and #DESPOT
+    p.pl_count += 1
+    if dist == 1
+        p.de_count += 1
     end
+
     if D.Delta[b] > p.sol.D
         make_default!(D, b)
+        backup!(D, b, p)
+        return nothing::Nothing
     end
+    if prune!(D, b, p)
+        return nothing::Nothing
+    end
+
+    if isempty(D.children[b]) # a leaf
+        expand!(D, b, p)
+    end
+
+    # select action branch
+    start_ind = D.children[b][1]
+    end_ind = start_ind + length(D.children[b]) - 1
+    if p.sol.impl == :prob
+        arr =  rand(p.rng) > p.sol.beta ? D.ba_mu[start_ind:end_ind] : D.ba_l[start_ind:end_ind]
+    elseif p.sol.impl == :val
+        arr = D.ba_mu[start_ind:end_ind] + p.sol.beta .* D.ba_l[start_ind:end_ind]
+    else
+        mu_ranking = ind_rank(D.ba_mu, D.children[b])
+        l_ranking = ind_rank(D.ba_l, D.children[b])
+        arr = mu_ranking .+ p.sol.beta.*l_ranking
+    end
+    best_ba = 0
+    max_eu = 0.0
+    children_eu = Float64[]
+    sorted_action = index_sort(arr, [1:length(arr);])
+    for i in length(arr):-1:1
+        best_ba = start_ind + sorted_action[i] - 1
+        children_eu = [excess_uncertainty(D, bp, p) for bp in D.ba_children[best_ba]]
+        max_eu = maximum(children_eu)
+        if max_eu > 0
+            break
+        end
+    end
+
+    # select observation branch
+    zeta = p.theta^(1/dist)
+    for i in 1:length(children_eu)
+        eu = children_eu[i]
+        if eu >= zeta * max_eu
+            if eu == max_eu
+                explore!(D, D.ba_children[best_ba][i], p, dist)
+            else
+                explore!(D, D.ba_children[best_ba][i], p, dist+1)
+            end
+        end
+    end
+
     backup!(D, b, p)
     return nothing::Nothing
 end
@@ -170,19 +153,15 @@ function excess_uncertainty(D::DESPOT, b::Int, p::PL_DESPOTPlanner)
     return D.mu[b]-D.l[b] - length(D.scenarios[b])/p.sol.K * p.sol.xi * (D.mu[1]-D.l[1])
 end
 
-function null_adjust(depth, k, left_time)
-    # You may design a similar function and use it to construct DESPOT solver as adjust_zata filed in it
-    1
-end
-
-function ind_rank(arr::Vector{Float64}, inds::Vector{Int})
-    sort_ind = Vector{Int}(undef, length(inds))
-    ind_ranking = Vector{Int}(undef, length(inds))
+function index_sort(arr::Vector{Float64}, inds::Vector{Int})
+    # Sort the array by its index rather than the elements
+    # Return an array of indexes of inds in ascending order of the real values
+    sort_ind = Vector{Int64}(undef, length(inds))
     sort_ind[1] = 1
     for i in 2:length(inds)
         ind = 1
         for j in i-1:-1:1
-            if arr[inds[i]] > arr[inds[sort_ind[j]]]
+            if arr[inds[i]] < arr[inds[sort_ind[j]]]
                 sort_ind[j+1] = sort_ind[j]
             else
                 ind = j + 1
@@ -191,7 +170,12 @@ function ind_rank(arr::Vector{Float64}, inds::Vector{Int})
         end
         sort_ind[ind] = i
     end
+    return sort_ind::Array{Int64,1}
+end
 
+function ind_rank(arr::Vector{Float64}, inds::Vector{Int})
+    sort_ind = index_sort(arr, inds)
+    ind_ranking = Vector{Int64}(undef, length(inds))
     ind_ranking[sort_ind[1]] = 1
     rank = 1
     for i in 2:length(sort_ind)
@@ -202,5 +186,5 @@ function ind_rank(arr::Vector{Float64}, inds::Vector{Int})
             ind_ranking[sort_ind[i]] = rank
         end
     end
-    return ind_ranking
+    return ind_ranking::Array{Int64,1}
 end

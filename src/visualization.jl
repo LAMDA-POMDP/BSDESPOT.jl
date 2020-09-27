@@ -51,13 +51,13 @@ function D3Trees.D3Tree(D::DESPOT; title="DESPOT Tree", kwargs...)
                                      l:%6.2f, μ:%6.2f""",
                                      D.ba_action[ba], D.ba_rho[ba],
                                      L[ba+lenb], U,
-                                     ba_l(D, ba), D.ba_mu[ba])
+                                     D.ba_l[ba], D.ba_mu[ba])
             tt[ba+lenb] = """
                           a: $(D.ba_action[ba])
                           ρ: $(D.ba_rho[ba])
                           L: $(L[ba+lenb])
                           U: $U
-                          l: $(ba_l(D, ba))
+                          l: $(D.ba_l[ba])
                           μ: $(D.ba_mu[ba])
                           $(length(D.ba_children[ba])) children
                           """

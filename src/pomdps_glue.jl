@@ -20,7 +20,7 @@ function POMDPModelTools.action_info(p::PL_DESPOTPlanner, b)
         best_l = -Inf
         best_as = actiontype(p.pomdp)[]
         for ba in D.children[1]
-            l = ba_l(D, ba)
+            l = D.ba_l[ba]
             if l > best_l
                 best_l = l
                 best_as = [D.ba_action[ba]]
@@ -37,8 +37,6 @@ function POMDPModelTools.action_info(p::PL_DESPOTPlanner, b)
 end
 
 POMDPs.action(p::PL_DESPOTPlanner, b) = first(action_info(p, b))::actiontype(p.pomdp)
-
-ba_l(D::DESPOT, ba::Int) = D.ba_rho[ba] + sum(D.l[bnode] for bnode in D.ba_children[ba])
 
 POMDPs.updater(p::PL_DESPOTPlanner) = SIRParticleFilter(p.pomdp, p.sol.K, rng=p.rng)
 

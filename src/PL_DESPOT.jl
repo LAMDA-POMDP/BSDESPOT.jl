@@ -66,7 +66,6 @@ parameters match the definitions in the paper exactly.
 - `K`
 - `D`
 - `lambda`
-- 'zeta'
 - `T_max`
 - `max_trials`
 - `bounds`
@@ -75,6 +74,11 @@ parameters match the definitions in the paper exactly.
 - `random_source`
 - `bounds_warnings`
 - `tree_in_info`
+- `theta_l`
+- `Delta`
+- `C`
+- `impl`
+- `beta`
 
 Further information can be found in the field docstrings (e.g.
 `?PL_DESPOTSolver.xi`)
@@ -122,11 +126,14 @@ Further information can be found in the field docstrings (e.g.
     "If true, a reprenstation of the constructed DESPOT is returned by POMDPModelTools.action_info."
     tree_in_info::Bool                      = false
 
-    "The fixed rate of choosing extra observation branches"
-    zeta::Float64                           = 0.8
+    "The lower bound of theta"
+    theta_l::Float64                        = 0.8
 
-    "function to adjust zeta during exploration"
-    adjust_zeta::Any                        = null_adjust
+    "Step length for adjusting theta"
+    Delta::Float64                          = 0.01
+
+    "Control the ratio of #PLEASE and #DESPOT"
+    C::Float64                              = 10.0
 
     "A number used to adjust the engagement of lower bound in branch selection."
     beta::Float64                           = 0.0
@@ -139,12 +146,15 @@ include("scenario_belief.jl")
 include("default_policy_sim.jl")
 include("bounds.jl")
 
-struct PL_DESPOTPlanner{P<:POMDP, B, RS<:DESPOTRandomSource, RNG<:AbstractRNG} <: Policy
+mutable struct PL_DESPOTPlanner{P<:POMDP, B, RS<:DESPOTRandomSource, RNG<:AbstractRNG} <: Policy
     sol::PL_DESPOTSolver
     pomdp::P
     bounds::B
     rs::RS
     rng::RNG
+    theta::Float64
+    de_count::Int64
+    pl_count::Int64
 end
 
 function PL_DESPOTPlanner(sol::PL_DESPOTSolver, pomdp::POMDP)
@@ -152,7 +162,7 @@ function PL_DESPOTPlanner(sol::PL_DESPOTSolver, pomdp::POMDP)
     rng = deepcopy(sol.rng)
     rs = deepcopy(sol.random_source)
     Random.seed!(rs, rand(rng, UInt32))
-    return PL_DESPOTPlanner(deepcopy(sol), pomdp, bounds, rs, rng)
+    return PL_DESPOTPlanner(deepcopy(sol), pomdp, bounds, rs, rng, 1.0, 0, 0)
 end
 
 include("tree.jl")
