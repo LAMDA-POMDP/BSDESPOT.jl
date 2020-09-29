@@ -123,7 +123,10 @@ Further information can be found in the field docstrings (e.g.
     tree_in_info::Bool                      = false
 
     "The fixed rate of choosing extra observation branches"
-    zeta::Float64                           = 0.8
+    zeta::Float64                           = 1.0
+
+    "The lower bound of zeta"
+    zeta_l::Float64                         = 0.8
 
     "function to adjust zeta during exploration"
     adjust_zeta::Any                        = null_adjust
@@ -142,12 +145,14 @@ include("scenario_belief.jl")
 include("default_policy_sim.jl")
 include("bounds.jl")
 
-struct PL_DESPOTPlanner{P<:POMDP, B, RS<:DESPOTRandomSource, RNG<:AbstractRNG} <: Policy
+mutable struct PL_DESPOTPlanner{P<:POMDP, B, RS<:DESPOTRandomSource, RNG<:AbstractRNG} <: Policy
     sol::PL_DESPOTSolver
     pomdp::P
     bounds::B
     rs::RS
     rng::RNG
+    de_count::Int64
+    pl_count::Int64
 end
 
 function PL_DESPOTPlanner(sol::PL_DESPOTSolver, pomdp::POMDP)
@@ -155,7 +160,7 @@ function PL_DESPOTPlanner(sol::PL_DESPOTSolver, pomdp::POMDP)
     rng = deepcopy(sol.rng)
     rs = deepcopy(sol.random_source)
     Random.seed!(rs, rand(rng, UInt32))
-    return PL_DESPOTPlanner(deepcopy(sol), pomdp, bounds, rs, rng)
+    return PL_DESPOTPlanner(deepcopy(sol), pomdp, bounds, rs, rng, 0, 0)
 end
 
 include("tree.jl")
