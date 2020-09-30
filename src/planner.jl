@@ -158,7 +158,7 @@ function excess_uncertainty(D::DESPOT, b::Int, p::PL_DESPOTPlanner)
     return D.mu[b]-D.l[b] - length(D.scenarios[b])/p.sol.K * p.sol.xi * (D.mu[1]-D.l[1])
 end
 
-function null_adjust(depth, k, left_time)
+function null_adjust(l, depth, k, left_time)
     # You may design a similar function and use it to construct DESPOT solver as adjust_zata filed in it
     1
 end
