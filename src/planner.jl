@@ -21,6 +21,11 @@ function explore!(D::DESPOT, b::Int, p::PL_DESPOTPlanner, start::UInt64, dist::I
         p.de_count += 1
     end
 
+    if excess_uncertainty(D, b, p) <= 0
+        backup!(D, b, p)
+        return nothing::Nothing
+    end
+
     if D.Delta[b] > p.sol.D
         make_default!(D, b)
         backup!(D, b, p)
@@ -50,6 +55,8 @@ function explore!(D::DESPOT, b::Int, p::PL_DESPOTPlanner, start::UInt64, dist::I
     max_eu = 0.0
     children_eu = Float64[]
     sorted_action = index_sort(arr, [1:length(arr);])
+    highest_ub = maximum(D.ba_mu[start_ind:end_ind])
+
     for i in length(arr):-1:1
         best_ba = start_ind + sorted_action[i] - 1
         children_eu = [excess_uncertainty(D, bp, p) for bp in D.ba_children[best_ba]]
@@ -57,28 +64,25 @@ function explore!(D::DESPOT, b::Int, p::PL_DESPOTPlanner, start::UInt64, dist::I
         if max_eu > 0
             explore!(D, D.ba_children[best_ba][ind], p, start, dist)
             children_eu[ind] = -Inf
+
+            depth = D.Delta[b]/p.sol.D
+            k = length(D.scenarios[b])/p.sol.K
+            left_time = min(0, 1 - (CPUtime_us() - start)/(p.sol.T_max*1e6))
+
+            ratio::Float64 = p.pl_count / p.de_count
+            zeta = p.sol.zeta
+            if ratio <= p.sol.C
+                zeta *= p.sol.adjust_zeta(p.sol.zeta_l, depth, k, left_time)
+            end
+            for i in 1:length(children_eu)
+                eu = children_eu[i]
+                if eu >= zeta * max_eu
+                    explore!(D, D.ba_children[best_ba][i], p, start, dist+1)
+                end
+            end
             break
-        end
-    end
-
-    # select observation branch
-    depth = D.Delta[b]/p.sol.D
-    k = length(D.scenarios[b])/p.sol.K
-    left_time = min(0, 1 - (CPUtime_us() - start)/(p.sol.T_max*1e6))
-
-    ratio::Float64 = p.pl_count / p.de_count
-    if ratio <= p.sol.C
-        zeta = p.sol.zeta*p.sol.adjust_zeta(p.sol.zeta_l, depth, k, left_time)
-    else
-        zeta = p.sol.zeta
-    end
-
-    for i in 1:length(children_eu)
-        eu, id = findmax(children_eu)
-        if eu >= zeta * max_eu
-            explore!(D, D.ba_children[best_ba][id], p, start, dist+1)
-            children_eu[id] = -Inf
-        else
+        elseif D.ba_mu[best_ba] == highest_ub
+            explore!(D, D.ba_children[best_ba][ind], p, start, dist)
             break
         end
     end
