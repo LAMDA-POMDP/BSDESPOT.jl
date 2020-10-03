@@ -27,6 +27,10 @@ function explore!(D::DESPOT, b::Int, p::PL_DESPOTPlanner, dist::Int)
         p.de_count += 1
     end
 
+    if excess_uncertainty(D, b, p) <= 0.0
+        backup!(D, b, p)
+        return nothing::Nothing
+    end
     if D.Delta[b] > p.sol.D
         make_default!(D, b)
         backup!(D, b, p)
@@ -40,9 +44,10 @@ function explore!(D::DESPOT, b::Int, p::PL_DESPOTPlanner, dist::Int)
         expand!(D, b, p)
     end
 
-    # select action branch
+    # calculate the index of all available action branch
     start_ind = D.children[b][1]
     end_ind = start_ind + length(D.children[b]) - 1
+    # arr is used for sorting actions
     if p.sol.impl == :prob
         arr =  rand(p.rng) > p.sol.beta ? D.ba_mu[start_ind:end_ind] : D.ba_l[start_ind:end_ind]
     elseif p.sol.impl == :val
@@ -52,27 +57,33 @@ function explore!(D::DESPOT, b::Int, p::PL_DESPOTPlanner, dist::Int)
         l_ranking = ind_rank(D.ba_l, D.children[b])
         arr = mu_ranking .+ p.sol.beta.*l_ranking
     end
-    best_ba = 0
-    max_eu = 0.0
-    children_eu = Float64[]
+    # sort the actions according to arr
     sorted_action = index_sort(arr, [1:length(arr);])
+    # store the highest upper bound among all action branches for further usage
+    highest_ub = maximum(D.ba_mu[start_ind:end_ind])
     for i in length(arr):-1:1
+        # Select the current best action
         best_ba = start_ind + sorted_action[i] - 1
         children_eu = [excess_uncertainty(D, bp, p) for bp in D.ba_children[best_ba]]
         max_eu, ind = findmax(children_eu)
         if max_eu > 0
+            # explore best observation
             explore!(D, D.ba_children[best_ba][ind], p, dist)
             children_eu[ind] = 0.0
+            # explore extra observation branch
+            zeta_eu = p.theta^(1/dist) * max_eu
+            for i in 1:length(children_eu)
+                eu = children_eu[i]
+                if eu >= zeta_eu
+                    explore!(D, D.ba_children[best_ba][i], p, dist+1)
+                end
+            end
             break
-        end
-    end
-
-    # select observation branch
-    zeta = p.theta^(1/dist)
-    for i in 1:length(children_eu)
-        eu = children_eu[i]
-        if eu >= zeta * max_eu
-            explore!(D, D.ba_children[best_ba][i], p, dist+1)
+        # It is meaningless to expand other action branches if the action with the highest
+        # upper bound has an excess uncertainty lower than or equal to 0
+        elseif D.ba_mu[best_ba] == highest_ub 
+            explore!(D, D.ba_children[best_ba][ind], p, dist)
+            break
         end
     end
 
