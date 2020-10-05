@@ -13,6 +13,7 @@ struct DESPOT{S,A,O}
     ba_children::Vector{Vector{Int}}
     ba_l::Vector{Float64} # needed for next_best
     ba_mu::Vector{Float64} # needed for next_best
+    ba_U::Vector{Float64}
     ba_rho::Vector{Float64} # needed for backup
     ba_Rsum::Vector{Float64} # needed for backup
     ba_action::Vector{A}
@@ -45,6 +46,7 @@ function DESPOT(p::PL_DESPOTPlanner, b_0)
                          Vector{O}(undef, 1),
 
                          Vector{Int}[],
+                         Float64[],
                          Float64[],
                          Float64[],
                          Float64[],
@@ -116,6 +118,7 @@ function expand!(D::DESPOT, b::Int, p::PL_DESPOTPlanner)
 
         push!(D.ba_mu, D.ba_rho[ba] + sum(D.mu[bp] for bp in D.ba_children[ba]))
         push!(D.ba_l, D.ba_rho[ba] + sum(D.l[bp] for bp in D.ba_children[ba]))
+        push!(D.ba_U, (D.ba_Rsum[ba] + discount(p.pomdp) * sum(length(D.scenarios[bp]) * D.U[bp] for bp in D.ba_children[ba]))/length(D.scenarios[b]))
     end
 end
 

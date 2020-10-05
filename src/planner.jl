@@ -130,31 +130,32 @@ function make_default!(D::DESPOT, b::Int)
 end
 
 function backup!(D::DESPOT, b::Int, p::PL_DESPOTPlanner)
-    if b != 1
-        ba = D.parent[b]
-        b = D.parent_b[b]
-
-        D.ba_mu[ba] = D.ba_rho[ba] + sum(D.mu[bp] for bp in D.ba_children[ba])
-        D.ba_l[ba] = D.ba_rho[ba] + sum(D.l[bp] for bp in D.ba_children[ba])
-
-        U = []
-        mu = []
-        l = []
-        for ba in D.children[b]
-            weighted_sum_U = 0.0
-            for bp in D.ba_children[ba]
-                weighted_sum_U += length(D.scenarios[bp]) * D.U[bp]
-            end
-            push!(U, D.ba_Rsum[ba] + discount(p.pomdp) * weighted_sum_U)/length(D.scenarios[b])
-            push!(mu, D.ba_rho[ba] + D.ba_mu[ba])
-            push!(l, D.ba_rho[ba] + D.ba_l[ba])
-        end
-
-        l_0 = D.l_0[b]
-        D.U[b] = maximum(U)
-        D.mu[b] = max(l_0, maximum(mu))
-        D.l[b] = max(l_0, maximum(l))
+    if b == 1
+        return nothing::Nothing
     end
+    ba = D.parent[b]
+    b = D.parent_b[b]
+
+    D.ba_mu[ba] = D.ba_rho[ba] + sum(D.mu[bp] for bp in D.ba_children[ba])
+    D.ba_l[ba] = D.ba_rho[ba] + sum(D.l[bp] for bp in D.ba_children[ba])
+    D.ba_U[ba] = (D.ba_Rsum[ba] + discount(p.pomdp) * sum(length(D.scenarios[bp]) * D.U[bp] for bp in D.ba_children[ba]))/length(D.scenarios[b])
+    
+    # sum_mu = 0.0
+    # sum_l = 0.0
+    # weighted_sum_U = 0.0
+    # for bp in D.ba_children[ba]
+    #     sum_mu += D.mu[bp]
+    #     sum_l += D.l[bp]
+    #     weighted_sum_U += length(D.scenarios[bp]) * D.U[bp]
+    # end
+    # D.ba_mu[ba] = D.ba_rho[ba] + sum_mu
+    # D.ba_l[ba] = D.ba_rho[ba] + sum_l
+    # D.ba_U[ba] = (D.ba_Rsum[ba] + discount(p.pomdp) * weighted_sum_U)/length(D.scenarios[b])
+
+    l_0 = D.l_0[b]
+    D.U[b] = maximum(D.ba_U[ba] for ba in D.children[b])
+    D.mu[b] = max(l_0, maximum(D.ba_mu[ba] for ba in D.children[b]))
+    D.l[b] = max(l_0, maximum(D.ba_l[ba] for ba in D.children[b]))
     return nothing::Nothing
 end
 
