@@ -95,7 +95,7 @@ solver = PL_DESPOTSolver(epsilon_0=0.1,
 p = solve(solver, pomdp)
 
 b0 = initialstate(pomdp)
-D = @inferred PL_DESPOT.build_despot(p, b0)
+D, info = @inferred PL_DESPOT.build_despot(p, b0)
 @inferred PL_DESPOT.explore!(D, 1, p, 1)
 @inferred PL_DESPOT.expand!(D, length(D.children), p)
 @inferred PL_DESPOT.prune!(D, 1, p)

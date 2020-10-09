@@ -119,6 +119,18 @@ function expand!(D::DESPOT, b::Int, p::PL_DESPOTPlanner)
         push!(D.ba_mu, D.ba_rho[ba] + sum(D.mu[bp] for bp in D.ba_children[ba]))
         push!(D.ba_l, D.ba_rho[ba] + sum(D.l[bp] for bp in D.ba_children[ba]))
         push!(D.ba_U, (D.ba_Rsum[ba] + discount(p.pomdp) * sum(length(D.scenarios[bp]) * D.U[bp] for bp in D.ba_children[ba]))/length(D.scenarios[b]))
+
+        # sum_mu = 0.0
+        # sum_l = 0.0
+        # weighted_sum_U = 0.0
+        # for bp in D.ba_children[ba]
+        #     sum_mu += D.mu[bp]
+        #     sum_l += D.l[bp]
+        #     weighted_sum_U += length(D.scenarios[bp]) * D.U[bp]
+        # end
+        # push!(D.ba_mu, D.ba_rho[ba] + sum_mu)
+        # push!(D.ba_l, D.ba_rho[ba] + sum_l)
+        # push!(D.ba_U, (D.ba_Rsum[ba] + discount(p.pomdp) * weighted_sum_U)/length(D.scenarios[b]))
     end
 end
 

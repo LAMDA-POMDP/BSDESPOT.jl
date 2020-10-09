@@ -3,10 +3,14 @@ function build_despot(p::PL_DESPOTPlanner, b_0)
     b = 1
     trial = 1
     start = CPUtime_us()
+    ub_list = [D.mu[1]]
+    lb_list = [D.l[1]]
+    theta_list = [p.theta]
 
     while D.mu[1]-D.l[1] > p.sol.epsilon_0 &&
           CPUtime_us()-start < p.sol.T_max*1e6 &&
           trial <= p.sol.max_trials
+
         explore!(D, 1, p, 1)
         if p.pl_count/p.de_count >= p.sol.C + 1
             p.theta = min(p.theta + p.sol.Delta, 1.0)
@@ -16,8 +20,12 @@ function build_despot(p::PL_DESPOTPlanner, b_0)
         p.pl_count = 0
         p.de_count = 0
         trial += 1
+
+        push!(ub_list, D.mu[1])
+        push!(lb_list, D.l[1])
+        push!(theta_list, p.theta)
     end
-    return D
+    return D, [:ub=>ub_list, :lb=>lb_list, :theta=>theta_list]
 end
 
 function explore!(D::DESPOT, b::Int, p::PL_DESPOTPlanner, dist::Int)
@@ -61,7 +69,7 @@ function explore!(D::DESPOT, b::Int, p::PL_DESPOTPlanner, dist::Int)
     sorted_action = index_sort(arr, [1:length(arr);])
     # store the highest upper bound among all action branches for further usage
     highest_ub = maximum(D.ba_mu[start_ind:end_ind])
-    for i in length(arr):-1:1
+    for i in length(sorted_action):-1:1
         # Select the current best action
         best_ba = start_ind + sorted_action[i] - 1
         children_eu = [excess_uncertainty(D, bp, p) for bp in D.ba_children[best_ba]]
@@ -86,7 +94,7 @@ function explore!(D::DESPOT, b::Int, p::PL_DESPOTPlanner, dist::Int)
             break
         end
     end
-
+    
     backup!(D, b, p)
     return nothing::Nothing
 end
@@ -152,10 +160,22 @@ function backup!(D::DESPOT, b::Int, p::PL_DESPOTPlanner)
     # D.ba_l[ba] = D.ba_rho[ba] + sum_l
     # D.ba_U[ba] = (D.ba_Rsum[ba] + discount(p.pomdp) * weighted_sum_U)/length(D.scenarios[b])
 
-    l_0 = D.l_0[b]
     D.U[b] = maximum(D.ba_U[ba] for ba in D.children[b])
-    D.mu[b] = max(l_0, maximum(D.ba_mu[ba] for ba in D.children[b]))
-    D.l[b] = max(l_0, maximum(D.ba_l[ba] for ba in D.children[b]))
+    D.mu[b] = max(D.l_0[b], maximum(D.ba_mu[ba] for ba in D.children[b]))
+    D.l[b] = max(D.l_0[b], maximum(D.ba_l[ba] for ba in D.children[b]))
+
+    # max_U = -Inf
+    # max_mu = -Inf
+    # max_l = -Inf
+    # for ba in D.children[b]
+    #     max_U = max(max_U, D.ba_U[ba])
+    #     max_mu = max(max_mu, D.ba_mu[ba])
+    #     max_l = max(max_l, D.ba_l[ba])
+    # end
+
+    # D.U[b] = max_U
+    # D.mu[b] = max(D.l_0[b], max_mu)
+    # D.l[b] = max(D.l_0[b], max_l)
     return nothing::Nothing
 end
 
@@ -163,7 +183,7 @@ function excess_uncertainty(D::DESPOT, b::Int, p::PL_DESPOTPlanner)
     return D.mu[b]-D.l[b] - length(D.scenarios[b])/p.sol.K * p.sol.xi * (D.mu[1]-D.l[1])
 end
 
-function index_sort(arr::Vector{Float64}, inds::Vector{Int})
+function index_sort(arr::Vector{Float64}, inds::Vector{Int64})
     # Sort the array by its index rather than the elements
     # Return an array of indexes of inds in ascending order of the real values
     sort_ind = Vector{Int64}(undef, length(inds))
@@ -183,7 +203,7 @@ function index_sort(arr::Vector{Float64}, inds::Vector{Int})
     return sort_ind::Array{Int64,1}
 end
 
-function ind_rank(arr::Vector{Float64}, inds::Vector{Int})
+function ind_rank(arr::Vector{Float64}, inds::Vector{Int64})
     sort_ind = index_sort(arr, inds)
     ind_ranking = Vector{Int64}(undef, length(inds))
     ind_ranking[sort_ind[1]] = 1
