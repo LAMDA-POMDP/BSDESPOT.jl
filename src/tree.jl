@@ -114,8 +114,14 @@ function expand!(D::DESPOT, b::Int, p::PL_DESPOTPlanner)
             D.l_0[bp] = l_0
         end
 
-        push!(D.ba_mu, D.ba_rho[ba] + sum(D.mu[bp] for bp in D.ba_children[ba]))
-        push!(D.ba_l, D.ba_rho[ba] + sum(D.l[bp] for bp in D.ba_children[ba]))
+        temp_mu = 0
+        temp_l = 0
+        for bp in D.ba_children[ba]
+            temp_mu += D.mu[bp]
+            temp_l += D.l[bp]
+        end
+        push!(D.ba_mu, D.ba_rho[ba] + temp_mu)
+        push!(D.ba_l, D.ba_rho[ba] + temp_l)
     end
 end
 

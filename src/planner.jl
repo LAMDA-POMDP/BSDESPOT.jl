@@ -53,7 +53,6 @@ function explore!(D::DESPOT, b::Int, p::PL_DESPOTPlanner, start::UInt64, dist::I
     end
     best_ba = 0
     max_eu = 0.0
-    children_eu = Float64[]
     sorted_action = index_sort(arr, [1:length(arr);])
     highest_ub = maximum(D.ba_mu[start_ind:end_ind])
 
@@ -75,10 +74,13 @@ function explore!(D::DESPOT, b::Int, p::PL_DESPOTPlanner, start::UInt64, dist::I
                 zeta *= p.sol.adjust_zeta(p.sol.zeta_l, depth, k, left_time)
             end
             for i in 1:length(children_eu)
-                eu = children_eu[i]
+                eu, id = findmax(children_eu)
                 if eu >= zeta * max_eu
-                    explore!(D, D.ba_children[best_ba][i], p, start, dist+1)
+                    explore!(D, D.ba_children[best_ba][id], p, start, dist+1)
+                else
+                    break
                 end
+                children_eu[id] = -Inf
             end
             break
         elseif D.ba_mu[best_ba] == highest_ub
@@ -98,7 +100,11 @@ function prune!(D::DESPOT, b::Int, p::PL_DESPOTPlanner)
         n = find_blocker(D, x, p)
         if n > 0
             make_default!(D, x)
-            backup!(D, x, p)
+            y = x
+            while y != 1
+                backup!(D, y, p)
+                y = D.parent_b[y]
+            end
             blocked = true
         else
             break
@@ -134,20 +140,30 @@ function backup!(D::DESPOT, b::Int, p::PL_DESPOTPlanner)
         ba = D.parent[b]
         b = D.parent_b[b]
 
-        D.ba_mu[ba] = D.ba_rho[ba] + sum(D.mu[bp] for bp in D.ba_children[ba])
-        D.ba_l[ba] = D.ba_rho[ba] + sum(D.l[bp] for bp in D.ba_children[ba])
+        temp_mu = 0
+        temp_l = 0
+        for bp in D.ba_children[ba]
+            temp_mu += D.mu[bp]
+            temp_l += D.l[bp]
+        end
+        D.ba_mu[ba] = D.ba_rho[ba] + temp_mu
+        D.ba_l[ba] = D.ba_rho[ba] + temp_l
 
         U = []
         mu = []
         l = []
         for ba in D.children[b]
             weighted_sum_U = 0.0
+            sum_mu = 0.0
+            sum_l = 0.0
             for bp in D.ba_children[ba]
                 weighted_sum_U += length(D.scenarios[bp]) * D.U[bp]
+                sum_mu += D.mu[bp]
+                sum_l += D.l[bp]
             end
             push!(U, D.ba_Rsum[ba] + discount(p.pomdp) * weighted_sum_U)/length(D.scenarios[b])
-            push!(mu, D.ba_rho[ba] + D.ba_mu[ba])
-            push!(l, D.ba_rho[ba] + D.ba_l[ba])
+            push!(mu, D.ba_rho[ba] + sum_mu)
+            push!(l, D.ba_rho[ba] + sum_l)
         end
 
         l_0 = D.l_0[b]
@@ -155,7 +171,6 @@ function backup!(D::DESPOT, b::Int, p::PL_DESPOTPlanner)
         D.mu[b] = max(l_0, maximum(mu))
         D.l[b] = max(l_0, maximum(l))
     end
-    return nothing::Nothing
 end
 
 function excess_uncertainty(D::DESPOT, b::Int, p::PL_DESPOTPlanner)
