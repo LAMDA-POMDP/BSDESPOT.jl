@@ -32,7 +32,6 @@ function POMDPModelTools.action_info(p::PL_DESPOTPlanner, b)
 
         return rand(p.rng, best_as)::actiontype(p.pomdp), info # best_as will usually only have one entry, but we want to break the tie randomly
     catch ex
-        print(ex)
         return default_action(p.sol.default_action, p.pomdp, b, ex)::actiontype(p.pomdp), info
     end
 end
