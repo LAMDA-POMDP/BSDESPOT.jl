@@ -13,7 +13,7 @@ function POMDPModelTools.action_info(p::PL_DESPOTPlanner, b)
 
         check_consistency(p.rs)
 
-        if isempty(D.children[1]) && D.U[1] <= D.l_0[1]
+        if isempty(D.children[1]) && D.mu[1] - D.l[1] <= p.sol.epsilon_0
             throw(NoGap(D.l_0[1]))
         end
 

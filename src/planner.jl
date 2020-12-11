@@ -9,26 +9,30 @@ function build_despot(p::PL_DESPOTPlanner, b_0)
           trial <= p.sol.max_trials
         p.pl_count = 0
         p.de_count = 0
-        explore!(D, 1, p, start, 1)
+        explore!(D, 1, p, true, false)
         trial += 1
     end
     return D
 end
 
-function explore!(D::DESPOT, b::Int, p::PL_DESPOTPlanner, start::UInt64, dist::Int)
+function explore!(D::DESPOT, b::Int, p::PL_DESPOTPlanner, opt_path::Bool, update_flag::Bool)
     p.pl_count += 1
-    if dist == 1
+    if opt_path
         p.de_count += 1
     end
 
     if excess_uncertainty(D, b, p) <= 0
-        backup!(D, b, p)
+        if update_flag
+            backup!(D, b, p)
+        end
         return nothing::Nothing
     end
 
     if D.Delta[b] > p.sol.D
         make_default!(D, b)
-        backup!(D, b, p)
+        if update_flag
+            backup!(D, b, p)
+        end
         return nothing::Nothing
     end
 
@@ -60,36 +64,44 @@ function explore!(D::DESPOT, b::Int, p::PL_DESPOTPlanner, start::UInt64, dist::I
         best_ba = start_ind + sorted_action[i] - 1
         children_eu = [excess_uncertainty(D, bp, p) for bp in D.ba_children[best_ba]]
         max_eu, ind = findmax(children_eu)
+
         if max_eu > 0
-            explore!(D, D.ba_children[best_ba][ind], p, start, dist)
-            children_eu[ind] = -Inf
+            depth = D.Delta[b] / p.sol.D
+            k = length(D.scenarios[b]) / p.sol.K
+            zeta = 1
 
-            depth = D.Delta[b]/p.sol.D
-            k = length(D.scenarios[b])/p.sol.K
-            left_time = min(0, 1 - (CPUtime_us() - start)/(p.sol.T_max*1e6))
-
-            ratio::Float64 = p.pl_count / p.de_count
-            zeta = p.sol.zeta
-            if ratio <= p.sol.C
-                zeta *= p.sol.adjust_zeta(p.sol.zeta_l, depth, k, left_time)
+            if p.pl_count / p.de_count <= p.sol.C
+                zeta *= p.sol.adjust_zeta(p.sol.zeta_l, depth, k)
             end
+
+            next_eu, next_id = max_eu, ind
             for i in 1:length(children_eu)
-                eu, id = findmax(children_eu)
-                if eu >= zeta * max_eu
-                    explore!(D, D.ba_children[best_ba][id], p, start, dist+1)
+                eu, id = next_eu, next_id
+                children_eu[id] = -Inf
+                next_eu, next_id = findmax(children_eu)
+
+                if id != ind
+                    opt_path = false
+                end
+
+                if eu >= zeta * max_eu && next_eu < zeta * max_eu
+                    explore!(D, D.ba_children[best_ba][id], p, opt_path, true)
+                elseif eu >= zeta * max_eu && next_eu >= zeta * max_eu
+                    explore!(D, D.ba_children[best_ba][id], p, opt_path, false)
                 else
                     break
                 end
-                children_eu[id] = -Inf
             end
             break
         elseif D.ba_mu[best_ba] == highest_ub
-            explore!(D, D.ba_children[best_ba][ind], p, start, dist)
+            explore!(D, D.ba_children[best_ba][ind], p, opt_path, true)
             break
         end
     end
 
-    backup!(D, b, p)
+    if update_flag
+        backup!(D, b, p)
+    end
     return nothing::Nothing
 end
 
@@ -177,7 +189,7 @@ function excess_uncertainty(D::DESPOT, b::Int, p::PL_DESPOTPlanner)
     return D.mu[b]-D.l[b] - length(D.scenarios[b])/p.sol.K * p.sol.xi * (D.mu[1]-D.l[1])
 end
 
-function null_adjust(l, depth, k, left_time)
+function null_adjust(l, depth, k)
     # You may design a similar function and use it to construct DESPOT solver as adjust_zata filed in it
     1
 end

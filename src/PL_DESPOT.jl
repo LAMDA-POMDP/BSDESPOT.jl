@@ -122,9 +122,6 @@ Further information can be found in the field docstrings (e.g.
     "If true, a reprenstation of the constructed DESPOT is returned by POMDPModelTools.action_info."
     tree_in_info::Bool                      = false
 
-    "The fixed rate of choosing extra observation branches"
-    zeta::Float64                           = 1.0
-
     "The lower bound of zeta"
     zeta_l::Float64                         = 0.8
 
