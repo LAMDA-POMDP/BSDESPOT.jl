@@ -122,8 +122,8 @@ Further information can be found in the field docstrings (e.g.
     "If true, a reprenstation of the constructed DESPOT is returned by POMDPModelTools.action_info."
     tree_in_info::Bool                      = false
 
-    "The lower bound of zeta"
-    zeta_l::Float64                         = 0.8
+    "Multi-Observation branches"
+    zeta::Float64                           = 1.0
 
     "function to adjust zeta during exploration"
     adjust_zeta::Any                        = null_adjust

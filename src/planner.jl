@@ -68,10 +68,10 @@ function explore!(D::DESPOT, b::Int, p::PL_DESPOTPlanner, opt_path::Bool, update
         if max_eu > 0
             depth = D.Delta[b] / p.sol.D
             k = length(D.scenarios[b]) / p.sol.K
-            zeta = 1
+            zeta = p.sol.zeta
 
             if p.pl_count / p.de_count <= p.sol.C
-                zeta *= p.sol.adjust_zeta(p.sol.zeta_l, depth, k)
+                zeta *= p.sol.adjust_zeta(depth, k)
             end
 
             next_eu, next_id = max_eu, ind
@@ -152,44 +152,21 @@ function backup!(D::DESPOT, b::Int, p::PL_DESPOTPlanner)
         ba = D.parent[b]
         b = D.parent_b[b]
 
-        temp_mu = 0
-        temp_l = 0
-        for bp in D.ba_children[ba]
-            temp_mu += D.mu[bp]
-            temp_l += D.l[bp]
-        end
-        D.ba_mu[ba] = D.ba_rho[ba] + temp_mu
-        D.ba_l[ba] = D.ba_rho[ba] + temp_l
+        D.ba_mu[ba] = D.ba_rho[ba] + sum(D.mu[bp] for bp in D.ba_children[ba])
+        D.ba_l[ba] = D.ba_rho[ba] + sum(D.l[bp] for bp in D.ba_children[ba])
 
-        U = []
-        mu = []
-        l = []
-        for ba in D.children[b]
-            weighted_sum_U = 0.0
-            sum_mu = 0.0
-            sum_l = 0.0
-            for bp in D.ba_children[ba]
-                weighted_sum_U += length(D.scenarios[bp]) * D.U[bp]
-                sum_mu += D.mu[bp]
-                sum_l += D.l[bp]
-            end
-            push!(U, D.ba_Rsum[ba] + discount(p.pomdp) * weighted_sum_U)/length(D.scenarios[b])
-            push!(mu, D.ba_rho[ba] + sum_mu)
-            push!(l, D.ba_rho[ba] + sum_l)
-        end
-
-        l_0 = D.l_0[b]
-        D.U[b] = maximum(U)
-        D.mu[b] = max(l_0, maximum(mu))
-        D.l[b] = max(l_0, maximum(l))
+        D.U[b] = maximum(D.ba_Rsum[ba] * discount(p.pomdp) * sum(length(D.scenarios[bp]) * D.U[bp] for bp in D.ba_children[ba]) for ba in D.children[b]) / length(D.scenarios[b])
+        D.mu[b] = max(D.l_0[b], maximum(D.ba_mu[ba] for ba in D.children[b]))
+        D.mu[b] = max(D.l_0[b], maximum(D.ba_l[ba] for ba in D.children[b]))
     end
+    return nothing
 end
 
 function excess_uncertainty(D::DESPOT, b::Int, p::PL_DESPOTPlanner)
     return D.mu[b]-D.l[b] - length(D.scenarios[b])/p.sol.K * p.sol.xi * (D.mu[1]-D.l[1])
 end
 
-function null_adjust(l, depth, k)
+function null_adjust(depth, k)
     # You may design a similar function and use it to construct DESPOT solver as adjust_zata filed in it
     1
 end
