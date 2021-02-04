@@ -1,4 +1,4 @@
-using PL_DESPOT
+using BS_DESPOT
 using Random
 
 mt = MersenneTwister(1)
