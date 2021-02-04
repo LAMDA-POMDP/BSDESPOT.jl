@@ -1,4 +1,4 @@
-function build_despot(p::PL_DESPOTPlanner, b_0)
+function build_despot(p::BS_DESPOTPlanner, b_0)
     D = DESPOT(p, b_0)
     b = 1
     trial = 1
@@ -7,7 +7,7 @@ function build_despot(p::PL_DESPOTPlanner, b_0)
     while D.mu[1]-D.l[1] > p.sol.epsilon_0 &&
           CPUtime_us()-start < p.sol.T_max*1e6 &&
           trial <= p.sol.max_trials
-        p.pl_count = 0
+        p.bs_count = 0
         p.de_count = 0
         explore!(D, 1, p, true, false)
         trial += 1
@@ -15,8 +15,8 @@ function build_despot(p::PL_DESPOTPlanner, b_0)
     return D
 end
 
-function explore!(D::DESPOT, b::Int, p::PL_DESPOTPlanner, opt_path::Bool, update_flag::Bool)
-    p.pl_count += 1
+function explore!(D::DESPOT, b::Int, p::BS_DESPOTPlanner, opt_path::Bool, update_flag::Bool)
+    p.bs_count += 1
     if opt_path
         p.de_count += 1
     end
@@ -70,7 +70,7 @@ function explore!(D::DESPOT, b::Int, p::PL_DESPOTPlanner, opt_path::Bool, update
             k = length(D.scenarios[b]) / p.sol.K
             zeta = p.sol.zeta
 
-            if p.pl_count / p.de_count <= p.sol.C
+            if p.bs_count / p.de_count <= p.sol.C
                 zeta *= p.sol.adjust_zeta(depth, k)
             end
 
@@ -105,7 +105,7 @@ function explore!(D::DESPOT, b::Int, p::PL_DESPOTPlanner, opt_path::Bool, update
     return nothing::Nothing
 end
 
-function prune!(D::DESPOT, b::Int, p::PL_DESPOTPlanner)
+function prune!(D::DESPOT, b::Int, p::BS_DESPOTPlanner)
     x = b
     blocked = false
     while x != 1
@@ -126,7 +126,7 @@ function prune!(D::DESPOT, b::Int, p::PL_DESPOTPlanner)
     return blocked
 end
 
-function find_blocker(D::DESPOT, b::Int, p::PL_DESPOTPlanner)
+function find_blocker(D::DESPOT, b::Int, p::BS_DESPOTPlanner)
     len = 1
     bp = D.parent_b[b]
     while bp != 1
@@ -147,7 +147,7 @@ function make_default!(D::DESPOT, b::Int)
     D.l[b] = l_0
 end
 
-function backup!(D::DESPOT, b::Int, p::PL_DESPOTPlanner)
+function backup!(D::DESPOT, b::Int, p::BS_DESPOTPlanner)
     if b != 1
         ba = D.parent[b]
         b = D.parent_b[b]
@@ -193,7 +193,7 @@ function backup!(D::DESPOT, b::Int, p::PL_DESPOTPlanner)
     end
 end
 
-function excess_uncertainty(D::DESPOT, b::Int, p::PL_DESPOTPlanner)
+function excess_uncertainty(D::DESPOT, b::Int, p::BS_DESPOTPlanner)
     return D.mu[b]-D.l[b] - length(D.scenarios[b])/p.sol.K * p.sol.xi * (D.mu[1]-D.l[1])
 end
 

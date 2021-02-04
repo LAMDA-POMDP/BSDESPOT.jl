@@ -1,4 +1,4 @@
-module PL_DESPOT
+module BS_DESPOT
 
 using POMDPs
 using BeliefUpdaters
@@ -17,9 +17,9 @@ import Random.rand
 
 
 export
-    # PL_DESPOT.jl
-    PL_DESPOTSolver,
-    PL_DESPOTPlanner,
+    # BS_DESPOT.jl
+    BS_DESPOTSolver,
+    BS_DESPOTPlanner,
 
     # random_2.jl
     DESPOTRandomSource,
@@ -51,9 +51,9 @@ export
 include("random_2.jl")
 
 """
-    PL_DESPOTSolver(<keyword arguments>)
+    BS_DESPOTSolver(<keyword arguments>)
 
-Implementation of the PL_DESPOTSolver solver trying to closely match the pseudo code of:
+Implementation of the BS_DESPOTSolver solver trying to closely match the pseudo code of:
 
 http://bigbird.comp.nus.edu.sg/m2ap/wordpress/wp-content/uploads/2017/08/jair14.pdf
 
@@ -75,12 +75,17 @@ parameters match the definitions in the paper exactly.
 - `random_source`
 - `bounds_warnings`
 - `tree_in_info`
+- `zeta`
+- `adjust_zeta`
+- `beta`
+- `impl`
+- `C`
 
 Further information can be found in the field docstrings (e.g.
-`?PL_DESPOTSolver.xi`)
+`?BS_DESPOTSolver.xi`)
 """
 
-@with_kw mutable struct PL_DESPOTSolver <: Solver
+@with_kw mutable struct BS_DESPOTSolver <: Solver
     "The target gap between the upper and the lower bound at the root of the partial DESPOT."
     epsilon_0::Float64                      = 0.0
 
@@ -122,19 +127,19 @@ Further information can be found in the field docstrings (e.g.
     "If true, a reprenstation of the constructed DESPOT is returned by POMDPModelTools.action_info."
     tree_in_info::Bool                      = false
 
-    "Multi-Observation branches"
+    "The hyper-parameter of multi-observation branches selection."
     zeta::Float64                           = 1.0
 
-    "function to adjust zeta during exploration"
+    "Function to adjust zeta during exploration."
     adjust_zeta::Any                        = null_adjust
 
     "A number used to adjust the engagement of lower bound in branch selection."
     beta::Float64                           = 0.0
 
-    "Select the implementation of LB-DESPOT"
+    "Select the implementation of lower bound selection."
     impl::Symbol                            = :rank
 
-    "Control the ratio of #PLEASE and #DESPOT"
+    "Control the ratio of #BS-DESPOT and #DESPOT."
     C::Float64                              = Inf
 end
 
@@ -142,22 +147,22 @@ include("scenario_belief.jl")
 include("default_policy_sim.jl")
 include("bounds.jl")
 
-mutable struct PL_DESPOTPlanner{P<:POMDP, B, RS<:DESPOTRandomSource, RNG<:AbstractRNG} <: Policy
-    sol::PL_DESPOTSolver
+mutable struct BS_DESPOTPlanner{P<:POMDP, B, RS<:DESPOTRandomSource, RNG<:AbstractRNG} <: Policy
+    sol::BS_DESPOTSolver
     pomdp::P
     bounds::B
     rs::RS
     rng::RNG
     de_count::Int64
-    pl_count::Int64
+    bs_count::Int64
 end
 
-function PL_DESPOTPlanner(sol::PL_DESPOTSolver, pomdp::POMDP)
+function BS_DESPOTPlanner(sol::BS_DESPOTSolver, pomdp::POMDP)
     bounds = init_bounds(sol.bounds, pomdp, sol)
     rng = deepcopy(sol.rng)
     rs = deepcopy(sol.random_source)
     Random.seed!(rs, rand(rng, UInt32))
-    return PL_DESPOTPlanner(deepcopy(sol), pomdp, bounds, rs, rng, 0, 0)
+    return BS_DESPOTPlanner(deepcopy(sol), pomdp, bounds, rs, rng, 0, 0)
 end
 
 include("tree.jl")

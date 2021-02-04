@@ -1,6 +1,6 @@
-POMDPs.solve(sol::PL_DESPOTSolver, p::POMDP) = PL_DESPOTPlanner(sol, p)
+POMDPs.solve(sol::BS_DESPOTSolver, p::POMDP) = BS_DESPOTPlanner(sol, p)
 
-function POMDPModelTools.action_info(p::PL_DESPOTPlanner, b)
+function POMDPModelTools.action_info(p::BS_DESPOTPlanner, b)
     info = Dict{Symbol, Any}()
     try
         Random.seed!(p.rs, rand(p.rng, UInt32))
@@ -36,13 +36,13 @@ function POMDPModelTools.action_info(p::PL_DESPOTPlanner, b)
     end
 end
 
-POMDPs.action(p::PL_DESPOTPlanner, b) = first(action_info(p, b))::actiontype(p.pomdp)
+POMDPs.action(p::BS_DESPOTPlanner, b) = first(action_info(p, b))::actiontype(p.pomdp)
 
 ba_l(D::DESPOT, ba::Int) = D.ba_rho[ba] + sum(D.l[bnode] for bnode in D.ba_children[ba])
 
-POMDPs.updater(p::PL_DESPOTPlanner) = SIRParticleFilter(p.pomdp, p.sol.K, rng=p.rng)
+POMDPs.updater(p::BS_DESPOTPlanner) = SIRParticleFilter(p.pomdp, p.sol.K, rng=p.rng)
 
-function Random.seed!(p::PL_DESPOTPlanner, seed)
+function Random.seed!(p::BS_DESPOTPlanner, seed)
     Random.seed!(p.rng, seed)
     return p
 end
