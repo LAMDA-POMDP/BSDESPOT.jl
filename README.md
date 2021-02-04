@@ -23,11 +23,11 @@ solver = BS_DESPOTSolver(..., beta=0.1, ...) # How to adjust beta
 ```
 
 ### Observation Branch Selection
-$zeta$ is the parameter to determine how close the branches are to the optimal ones will be selected. The default is 1.
+$\zeta$ is the parameter to determine how close the branches are to the optimal ones will be selected. The default is 1.
 ```julia
 solver = BS_DESPOTSolver(..., zeta=0.9, ...) # How to adjust zeta
 ```
-If you need to dynamically adjust $zeta$ during planning, please define a function related to d and k, i.e.
+If you need to dynamically adjust $\zeta$ during planning, please define a function related to d and k, i.e.
 ```julia
 # Define a function to adjust zeta dynamically. d is the ratio of the current depth to the maximum depth, k is the ratio of the number of current scenarios to K.
 function f_zeta(d, k)
