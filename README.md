@@ -5,7 +5,7 @@ Original ARDESPOT please refer to https://github.com/JuliaPOMDP/ARDESPOT.jl.
 ## Installation
 ```bash
 Pkg> registry add git@github.com:JuliaPOMDP/Registry.git
-Pkg> add https://github.com/LAMDA-POMDP/BS-DESPOT # If a mature version is needed
+Pkg> add https://github.com/LAMDA-POMDP/BS-DESPOT.jl # If a mature version is needed
 Pkg> dev PATH/TO/BS-DESPOT # If a version in development is needed, please first clone the project to the local.
 ```
 
