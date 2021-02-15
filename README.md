@@ -1,6 +1,5 @@
 # BS-DESPOT
 An implementation of the BS-DESPOT (Better Selection DESPOT) online POMDP Solver. BS-DESPOT is a variation of DESPOT. It provides action branch selection based on upper and lower bounds, and multi-observation branches selection.
-Original ARDESPOT please refer to https://github.com/JuliaPOMDP/ARDESPOT.jl.
 
 ## Installation
 ```bash
@@ -10,12 +9,29 @@ Pkg> dev PATH/TO/BS-DESPOT # If a version in development is needed, please first
 ```
 
 ## Usage
+```julia
+using POMDPs, POMDPModels, POMDPSimulators, BSDESPOT
+
+pomdp = TigerPOMDP()
+
+solver = BS_DESPOTSolver(bounds=IndependentBounds(-20.0, 0.0))
+planner = solve(solver, pomdp)
+
+for (s, a, o) in stepthrough(pomdp, planner, "s,a,o", max_steps=10)
+    println("State was $s,")
+    println("action $a was taken,")
+    println("and observation $o was received.\n")
+end
+```
+
+## Solver Options
+For some detailed parameters of DESPOT, please refer to original ARDESPOT: https://github.com/JuliaPOMDP/ARDESPOT.jl.
+
 ### Action Branch Selection
-BS-DESPOT provides three methods for selecting action branch based on upper and lower bounds: value-based, probability-based, ranking-based. The default is ranking-based method. Usage is as follows:
+BS-DESPOT provides two methods for selecting action branch based on upper and lower bounds: value-based, ranking-based. The default is ranking-based method. Usage is as follows:
 ```julia
 solver = BS_DESPOTSolver(..., impl=:rank, ...) # Ranking-based
 solver = BS_DESPOTSolver(..., impl=:val, ...) # Value-based
-solver = BS_DESPOTSolver(..., impl=:prob, ...) # Probability-based
 ```
 $\beta$ is the coefficient for adjusting the engagement of the lower bound. The default is 0.
 ```julia
