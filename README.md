@@ -1,11 +1,11 @@
-# BS-DESPOT
-An implementation of the BS-DESPOT (Better Selection DESPOT) online POMDP Solver. BS-DESPOT is a variation of DESPOT. It provides action branch selection based on upper and lower bounds, and multi-observation branches selection.
+# BSDESPOT
+An implementation of the BSDESPOT (Better Selection DESPOT) online POMDP Solver. BSDESPOT is a variation of DESPOT. It provides action branch selection based on upper and lower bounds, and multi-observation branches selection.
 
 ## Installation
 ```bash
 Pkg> registry add git@github.com:JuliaPOMDP/Registry.git
-Pkg> add https://github.com/LAMDA-POMDP/BS-DESPOT.jl # If a mature version is needed
-Pkg> dev PATH/TO/BS-DESPOT # If a version in development is needed, please first clone the project to the local.
+Pkg> add https://github.com/LAMDA-POMDP/BSDESPOT.jl # If a mature version is needed
+Pkg> dev PATH/TO/BSDESPOT # If a version in development is needed, please first clone the project to the local.
 ```
 
 ## Usage
@@ -28,7 +28,7 @@ end
 For some detailed parameters of DESPOT, please refer to original ARDESPOT: https://github.com/JuliaPOMDP/ARDESPOT.jl.
 
 ### Action Branch Selection
-BS-DESPOT provides two methods for selecting action branch based on upper and lower bounds: value-based, ranking-based. The default is ranking-based method. Usage is as follows:
+BSDESPOT provides two methods for selecting action branch based on upper and lower bounds: value-based, ranking-based. The default is ranking-based method. Usage is as follows:
 ```julia
 solver = BS_DESPOTSolver(..., impl=:rank, ...) # Ranking-based
 solver = BS_DESPOTSolver(..., impl=:val, ...) # Value-based
