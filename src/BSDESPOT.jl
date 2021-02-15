@@ -1,4 +1,4 @@
-module BS_DESPOT
+module BSDESPOT
 
 using POMDPs
 using BeliefUpdaters
@@ -53,9 +53,7 @@ include("random_2.jl")
 """
     BS_DESPOTSolver(<keyword arguments>)
 
-Implementation of the BS_DESPOTSolver solver trying to closely match the pseudo code of:
-
-http://bigbird.comp.nus.edu.sg/m2ap/wordpress/wp-content/uploads/2017/08/jair14.pdf
+Implementation of the BS_DESPOTSolver solver.
 
 Each field may be set via keyword argument. The fields that correspond to algorithm
 parameters match the definitions in the paper exactly.
@@ -75,7 +73,6 @@ parameters match the definitions in the paper exactly.
 - `random_source`
 - `bounds_warnings`
 - `tree_in_info`
-- `zeta`
 - `adjust_zeta`
 - `beta`
 - `impl`
@@ -127,16 +124,13 @@ Further information can be found in the field docstrings (e.g.
     "If true, a reprenstation of the constructed DESPOT is returned by POMDPModelTools.action_info."
     tree_in_info::Bool                      = false
 
-    "The hyper-parameter of multi-observation branches selection."
-    zeta::Float64                           = 1.0
-
-    "Function to adjust zeta during exploration."
+    "Function to adjust the hyper-parameter zeta of multi-observation branches selection during exploration."
     adjust_zeta::Any                        = null_adjust
 
     "A number used to adjust the engagement of lower bound in branch selection."
     beta::Float64                           = 0.0
 
-    "Select the implementation of lower bound selection."
+    "Select the implementation of lower bound selection. We implement two methods: ranking-based(:rank) and value-based(:val)"
     impl::Symbol                            = :rank
 
     "Control the ratio of #BS-DESPOT and #DESPOT."

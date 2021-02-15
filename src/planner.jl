@@ -21,88 +21,85 @@ function explore!(D::DESPOT, b::Int, p::BS_DESPOTPlanner, opt_path::Bool, update
         p.de_count += 1
     end
 
-    if excess_uncertainty(D, b, p) <= 0
-        if update_flag
-            backup!(D, b, p)
+    if excess_uncertainty(D, b, p) > 0 && D.Delta[b] <= p.sol.D && !prune!(D, b, p)
+        if isempty(D.children[b]) # a leaf
+            expand!(D, b, p)
         end
-        return nothing::Nothing
+
+        start_ind = D.children[b][1]
+        sorted_action, highest_ub = next_act(D, b, p)
+        for i in length(sorted_action):-1:1
+            @inbounds best_ba = start_ind + sorted_action[i] - 1
+            obs_arr = next_obs(D, b, best_ba, p, highest_ub)
+            if size(obs_arr)[1] != 0
+                for i in 1:size(obs_arr)[1]
+                    explore!(D, obs_arr[i], p, opt_path && (i==1), (i==size(obs_arr)[1]))
+                end
+                break
+            end
+        end
     end
 
     if D.Delta[b] > p.sol.D
         make_default!(D, b)
-        if update_flag
-            backup!(D, b, p)
-        end
-        return nothing::Nothing
     end
 
-    if prune!(D, b, p)
-        return nothing::Nothing
+    if update_flag
+        backup!(D, b, D.parent_b[b], p)
     end
+    return nothing::Nothing
+end
 
-    if isempty(D.children[b]) # a leaf
-        expand!(D, b, p)
-    end
-
+function next_act(D::DESPOT, b::Int, p::BS_DESPOTPlanner)
     start_ind = D.children[b][1]
     end_ind = start_ind + length(D.children[b]) - 1
-    if p.sol.impl == :prob
-        arr =  rand(p.rng) > p.sol.beta ? D.ba_mu[start_ind:end_ind] : D.ba_l[start_ind:end_ind]
-    elseif p.sol.impl == :val
+    if p.sol.impl == :val || p.sol.beta == 0
         arr = D.ba_mu[start_ind:end_ind] + p.sol.beta .* D.ba_l[start_ind:end_ind]
     else
         mu_ranking = ind_rank(D.ba_mu, D.children[b])
         l_ranking = ind_rank(D.ba_l, D.children[b])
         arr = mu_ranking .+ p.sol.beta.*l_ranking
     end
-    best_ba = 0
-    max_eu = 0.0
     sorted_action = index_sort(arr, [1:length(arr);])
     highest_ub = maximum(D.ba_mu[start_ind:end_ind])
+    return sorted_action, highest_ub
+end
 
-    for i in length(arr):-1:1
-        best_ba = start_ind + sorted_action[i] - 1
-        children_eu = [excess_uncertainty(D, bp, p) for bp in D.ba_children[best_ba]]
-        max_eu, ind = findmax(children_eu)
+function next_obs(D::DESPOT, b::Int, ba::Int, p::BS_DESPOTPlanner, highest_ub::Float64)
+    obs_arr = Int[]
+    children_eu = [excess_uncertainty(D, bp, p) for bp in D.ba_children[ba]]
+    max_eu, ind = findmax(children_eu)
+    
+    if max_eu > 0
+        depth = D.Delta[b] / p.sol.D
+        k = length(D.scenarios[b]) / p.sol.K
+        zeta = 1.0
 
-        if max_eu > 0
-            depth = D.Delta[b] / p.sol.D
-            k = length(D.scenarios[b]) / p.sol.K
-            zeta = p.sol.zeta
-
-            if p.bs_count / p.de_count <= p.sol.C
-                zeta *= p.sol.adjust_zeta(depth, k)
-            end
-
-            next_eu, next_id = max_eu, ind
-            for i in 1:length(children_eu)
-                eu, id = next_eu, next_id
-                children_eu[id] = -Inf
-                next_eu, next_id = findmax(children_eu)
-
-                if id != ind
-                    opt_path = false
-                end
-
-                if eu >= zeta * max_eu && next_eu < zeta * max_eu
-                    explore!(D, D.ba_children[best_ba][id], p, opt_path, true)
-                elseif eu >= zeta * max_eu && next_eu >= zeta * max_eu
-                    explore!(D, D.ba_children[best_ba][id], p, opt_path, false)
-                else
-                    break
-                end
-            end
-            break
-        elseif D.ba_mu[best_ba] == highest_ub
-            explore!(D, D.ba_children[best_ba][ind], p, opt_path, true)
-            break
+        push!(obs_arr, D.ba_children[ba][ind])
+        if p.sol.adjust_zeta == null_adjust
+            return obs_arr
         end
-    end
 
-    if update_flag
-        backup!(D, b, p)
+        if p.bs_count / p.de_count <= p.sol.C
+            zeta = p.sol.adjust_zeta(depth, k)
+            @assert(zeta<=1 && zeta>=0, "$depth, $k")
+        end
+
+        children_eu[ind] = -Inf
+
+        while true
+            eu, id = findmax(children_eu)
+            if eu >= zeta * max_eu
+                push!(obs_arr, D.ba_children[ba][id])
+                children_eu[id] = -Inf
+            else
+                break
+            end
+        end
+    elseif D.ba_mu[ba] == highest_ub
+        push!(obs_arr, D.ba_children[ba][ind])
     end
-    return nothing::Nothing
+    return obs_arr
 end
 
 function prune!(D::DESPOT, b::Int, p::BS_DESPOTPlanner)
@@ -112,11 +109,7 @@ function prune!(D::DESPOT, b::Int, p::BS_DESPOTPlanner)
         n = find_blocker(D, x, p)
         if n > 0
             make_default!(D, x)
-            y = x
-            while y != 1
-                backup!(D, y, p)
-                y = D.parent_b[y]
-            end
+            backup!(D, x, 1, p)
             blocked = true
         else
             break
@@ -147,50 +140,19 @@ function make_default!(D::DESPOT, b::Int)
     D.l[b] = l_0
 end
 
-function backup!(D::DESPOT, b::Int, p::BS_DESPOTPlanner)
-    if b != 1
+function backup!(D::DESPOT, b::Int, target::Int, p::BS_DESPOTPlanner)
+    while b != target
         ba = D.parent[b]
         b = D.parent_b[b]
 
-        # https://github.com/JuliaLang/julia/issues/19398
-        #=
         D.ba_mu[ba] = D.ba_rho[ba] + sum(D.mu[bp] for bp in D.ba_children[ba])
-        =#
-        sum_mu = 0.0
-        for bp in D.ba_children[ba]
-            sum_mu += D.mu[bp]
-        end
-        D.ba_mu[ba] = D.ba_rho[ba] + sum_mu
+        D.ba_l[ba] = D.ba_rho[ba] + sum(D.l[bp] for bp in D.ba_children[ba])
 
-        #=
-        max_mu = maximum(D.ba_rho[ba] + sum(D.mu[bp] for bp in D.ba_children[ba]) for ba in D.children[b])
-        max_l = maximum(D.ba_rho[ba] + sum(D.l[bp] for bp in D.ba_children[ba]) for ba in D.children[b])
-        =#
-        max_U = -Inf
-        max_mu = -Inf
-        max_l = -Inf
-        for ba in D.children[b]
-            weighted_sum_U = 0.0
-            sum_mu = 0.0
-            sum_l = 0.0
-            for bp in D.ba_children[ba]
-                weighted_sum_U += length(D.scenarios[bp]) * D.U[bp]
-                sum_mu += D.mu[bp]
-                sum_l += D.l[bp]
-            end
-            new_U = (D.ba_Rsum[ba] + discount(p.pomdp) * weighted_sum_U)/length(D.scenarios[b])
-            new_mu = D.ba_rho[ba] + sum_mu
-            new_l = D.ba_rho[ba] + sum_l
-            max_U = max(max_U, new_U)
-            max_mu = max(max_mu, new_mu)
-            max_l = max(max_l, new_l)
-        end
-
-        l_0 = D.l_0[b]
-        D.U[b] = max_U
-        D.mu[b] = max(l_0, max_mu)
-        D.l[b] = max(l_0, max_l)
+        D.U[b] = maximum(D.ba_Rsum[ba] * discount(p.pomdp) * sum(length(D.scenarios[bp]) * D.U[bp] for bp in D.ba_children[ba]) for ba in D.children[b]) / length(D.scenarios[b])
+        D.mu[b] = max(D.l_0[b], maximum(D.ba_mu[ba] for ba in D.children[b]))
+        D.l[b] = max(D.l_0[b], maximum(D.ba_l[ba] for ba in D.children[b]))
     end
+    return nothing
 end
 
 function excess_uncertainty(D::DESPOT, b::Int, p::BS_DESPOTPlanner)
