@@ -35,8 +35,10 @@ function explore!(D::DESPOT, b::Int, p::BS_DESPOTPlanner, opt_path::Bool, update
                 for i in 1:size(obs_arr)[1]
                     explore!(D, obs_arr[i], p, opt_path && (i==1), (i==size(obs_arr)[1]))
                 end
-                break
+            else
+                continue
             end
+            break
         end
     end
 
